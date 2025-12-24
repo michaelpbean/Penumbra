@@ -111,8 +111,13 @@
   #include "wifi/WifiWebServer.h"
  #endif
 #endif
-#include "bt/PSController/PSController.h"
-#include "esp_bt_device.h"
+
+#ifdef USE_BLUEPAD
+    #include "src/BluepadController/BluepadController.h"
+#else
+    #include "bt/PSController/PSController.h"
+    #include "esp_bt_device.h"
+#endif
 
 #ifdef USE_OTA
  #include <ArduinoOTA.h>
@@ -163,13 +168,22 @@ void emergencyStop();
 void enableDomeController();
 void disableDomeController();
 void domeEmergencyStop();
+void eventLoopTask(void *arg);
 
 ////////////////////////////////////
 
+#ifdef USE_BLUEPAD
+class DriveController : public BluepadController
+#else
 class DriveController : public PSController
+#endif
 {
 public:
-    DriveController(const char* mac = nullptr) : PSController(mac, DRIVE_CONTROLLER_TYPE) {}
+    #ifdef USE_BLUEPAD
+        DriveController(const char* mac = nullptr) : BluepadController(mac, DRIVE_CONTROLLER_TYPE) {}
+    #else
+        DriveController(const char* mac = nullptr) : PSController(mac, DRIVE_CONTROLLER_TYPE) {}
+    #endif
 
     virtual void notify() override
     {
@@ -270,6 +284,7 @@ public:
         DEBUG_PRINTLN("Drive Stick Connected");
         setPlayer(1);
         enableController();
+        enableDomeController();
         fLastTime = millis();
     }
     
@@ -277,18 +292,27 @@ public:
     {
         DEBUG_PRINTLN("Drive Stick Disconnected");
         disableController();
+        disableDomeController();
     }
 
     uint32_t fLastTime = 0;
 };
 DriveController driveStick(DRIVE_STICK_BT_ADDR);
 
-#if DOME_DRIVE != DOME_DRIVE_NONE && DRIVE_CONTROLLER_TYPE == kPS3Nav
+#if DOME_DRIVE != DOME_DRIVE_NONE && DRIVE_CONTROLLER_TYPE == 1 // kPS3Nav == 1
 // If dome drive is enabled and we are using PS3 Nav Controllers
+#ifdef USE_BLUEPAD
+class DomeController : public BluepadController
+#else
 class DomeController : public PSController
+#endif
 {
 public:
-    DomeController(const char* mac = nullptr) : PSController(mac) {}
+    #ifdef USE_BLUEPAD
+        DomeController(const char* mac = nullptr) : BluepadController(mac) {}
+    #else
+        DomeController(const char* mac = nullptr) : PSController(mac) {}
+    #endif
     virtual void notify() override
     {
         uint32_t currentTime = millis();
@@ -498,6 +522,7 @@ protected:
         }
     }
 };
+
 DomeController domeStick(DOME_STICK_BT_ADDR);
 #elif DOME_DRIVE != DOME_DRIVE_NONE
 // Dome Drive enabled using either PS3 or PS4 controller
@@ -595,7 +620,7 @@ WifiAccess wifiAccess;
 // Web configurable parameters. Strongly advice not to change web settings while motors are running
 // unless the wheels are off the ground.
 WElement mainContents[] = {
-    W1("Drive Configuration"),
+    WH1("Drive Configuration"),
     WSlider("Max Speed", "maxspeed", 0, 100,
         []()->int { return tankDrive.getMaxSpeed()*100; },
         [](int val) { tankDrive.stop(); tankDrive.setMaxSpeed(val/100.0f); } ),
@@ -669,6 +694,7 @@ WPage pages[] = {
 WifiWebServer<1,SizeOfArray(pages)> webServer(pages, wifiAccess);
 #endif
 
+#ifndef USE_BLUEPAD
 void showBluetoothAddress()
 {
     const uint8_t* addr = esp_bt_dev_get_address();
@@ -683,6 +709,7 @@ void showBluetoothAddress()
     Btd.my_bdaddr[5] = addr[0];
 #endif
 }
+#endif
 
 void setup()
 {
@@ -705,6 +732,11 @@ void setup()
 #ifdef DRIVE_BAUD_RATE
     // Serial1 is used for drive system
     Serial1.begin(DRIVE_BAUD_RATE, SERIAL_8N1, SERIAL1_RX_PIN, SERIAL1_TX_PIN);
+
+    // Serial2 is used for the dome drive if Sabertooth is not being used for the main drive, so start here.
+    #if (DOME_DRIVE == DOME_DRIVE_SABER) && (DRIVE_SYSTEM != DRIVE_SYSTEM_SABER)
+        Serial2.begin(DRIVE_BAUD_RATE, SERIAL_8N1, SERIAL2_RX_PIN, SERIAL2_TX_PIN);
+    #endif
 #endif
 #ifdef USE_RADIO
     Serial2.begin(57600, SERIAL_8N1, SERIAL2_RX_PIN, SERIAL2_TX_PIN);
@@ -715,13 +747,27 @@ void setup()
 #endif
 
     SetupEvent::ready();
-#ifdef MY_BT_ADDR
-    PSController::startListening(MY_BT_ADDR);
-#else
-    PSController::startListening();
-#endif
 
-    showBluetoothAddress();
+    // Initialize controller
+    #ifdef USE_BLUEPAD
+        // Bluepad controller initialization
+        BluepadController::startup();
+        BluepadController::registerBluepadController(&driveStick);
+        #if DOME_DRIVE != DOME_DRIVE_NONE
+            if ((BluepadController*) &domeStick != (BluepadController*) &driveStick)
+                BluepadController::registerBluepadController(&domeStick);
+        #endif
+    #else
+        #ifdef MY_BT_ADDR
+            PSController::startListening(MY_BT_ADDR);
+        #else
+            PSController::startListening();
+        #endif
+
+        showBluetoothAddress();
+    #endif
+    
+
 #ifdef USE_WIFI_WEB
     wifiAccess.notifyWifiConnected([](WifiAccess &wifi) {
         Serial.print("Connect to http://"); Serial.println(wifi.getIPAddress());
@@ -888,4 +934,7 @@ void loop()
 #ifdef USE_WIFI_WEB
     webServer.handle();
 #endif
+
+    BluepadController::update();
+    delay(1);
 }

@@ -33,7 +33,7 @@
 // to use the ESP32 bluetooth address
 
 #ifndef USE_USB
-#define MY_BT_ADDR             "24:6f:28:44:a5:ae"
+#define MY_BT_ADDR             "CC:7B:5C:C7:E7:AE"
 #endif
 //#define MY_BT_ADDR           "03:03:03:03:03:03"
 //#define MY_BT_ADDR           "84:C5:A6:61:AC:37"
@@ -53,9 +53,10 @@
 
 // Uncomment one of the following that is the type of PS controller you are using (default PS3)
 
-#define DRIVE_CONTROLLER_TYPE   kPS3Nav
+//#define DRIVE_CONTROLLER_TYPE   kPS3Nav
 //#define DRIVE_CONTROLLER_TYPE   kPS3
 //#define DRIVE_CONTROLLER_TYPE   kPS4
+#define DRIVE_CONTROLLER_TYPE   kPS5
 
 // ------------------------------
 // Drive system

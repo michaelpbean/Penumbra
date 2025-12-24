@@ -5,11 +5,14 @@
 *.sublime-workspace
 ._*
 .build
+.pio
+.vscode
 .lib
-build_version.h
+*build_version.h
 requirements.txt
 .DS_Store
 .DS_Store?
 .Spotlight-V100
 .Trashes
 .vs/
+/build
