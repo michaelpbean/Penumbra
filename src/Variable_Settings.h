@@ -11,7 +11,7 @@
   #define DRIVE_BAUD_RATE      9600
 #elif DRIVE_SYSTEM == DRIVE_SYSTEM_PWM
   #define NEED_DRIVE_PWM_PINS
-  #define CHANNEL_MIXING       false  // set to false if motor controller will mix the channels
+  #define CHANNEL_MIXING       true   // set to true premix channels before sending commands
 #elif DRIVE_SYSTEM == DRIVE_SYSTEM_ROBOTEQ_PWM
   #define NEED_DRIVE_PWM_PINS
   #define CHANNEL_MIXING       false  // set to false if motor controller will mix the channels

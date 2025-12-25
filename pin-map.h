@@ -36,20 +36,20 @@
 // Set the following only if you use PWM for your drive system.
 // You may ignore this if you do not use PWM for your drive system.
 
-#define LEFT_MOTOR_PWM      SCL  // Set to a PWM pin for left foot motor.
-#define RIGHT_MOTOR_PWM     OUTPUT_ENABLE_PIN  // Set to a PWM pin for right foot motor.
-#define THROTTLE_MOTOR_PWM  SDA  // Optional Roboteq pin used for MicroBasic scripts running on the Roboteq controller to change the throttle.
+#define LEFT_MOTOR_PWM      DOUT2_PIN //SCL  // Set to a PWM pin for left foot motor.
+#define RIGHT_MOTOR_PWM     DOUT1_PIN //OUTPUT_ENABLE_PIN  // Set to a PWM pin for right foot motor.
+//#define THROTTLE_MOTOR_PWM  SDA  // Optional Roboteq pin used for MicroBasic scripts running on the Roboteq controller to change the throttle.
                                                 // If the Microbasic script is not runnig this PWM signal will have no effect.
 
 // Set the following only if you use PWM for your dome system.
 // You may ignore this if you do not use PWM for your dome system.
 
-#define DOME_MOTOR_PWM      DOUT1_PIN  // Set to a PWM pin used to control the dome motor
+#define DOME_MOTOR_PWM      OUTPUT_ENABLE_PIN//DOUT1_PIN  // Set to a PWM pin used to control the dome motor
 
 #include "SoftwareSerial.h"
 
 #define TANK_DRIVE_ID       128
-#define DOME_DRIVE_ID       128
+#define DOME_DRIVE_ID       129
 
 // ------------------------------------------------------------------------------------------
 

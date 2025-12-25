@@ -69,7 +69,7 @@
 //  DRIVE_SYSTEM_ROBOTEQ_SERIAL
 //  DRIVE_SYSTEM_ROBOTEQ_PWM_SERIAL
 
-#define DRIVE_SYSTEM    DRIVE_SYSTEM_ROBOTEQ_PWM
+#define DRIVE_SYSTEM    DRIVE_SYSTEM_PWM
 
 // ------------------------------
 // Dome system

@@ -139,8 +139,8 @@ BTD Btd(&Usb);
 //     Pin,                Min,  Max,  Group ID
 const ServoSettings servoSettings[] PROGMEM = {
 #ifdef NEED_DRIVE_PWM_PINS
-     { LEFT_MOTOR_PWM,      800, 2200, 0 }
-    ,{ RIGHT_MOTOR_PWM,     800, 2200, 0 }
+     { LEFT_MOTOR_PWM,      1000, 2000, 0 }         // Neo motor min/max
+    ,{ RIGHT_MOTOR_PWM,     1000, 2000, 0 }         // Neo motor min/max
   #ifdef THROTTLE_MOTOR_PWM
     ,{ THROTTLE_MOTOR_PWM, 1000, 2000, 0 }
   #endif
