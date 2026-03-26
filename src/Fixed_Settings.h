@@ -28,8 +28,8 @@
 // Penumbra preferences
 
 #define PREFERENCE_DRIVE_SPEED              "maxspeed"
-#define PREFERENCE_DRIVE_THROTTLE_ACC_SCALE "throttleaccscale"
-#define PREFERENCE_DRIVE_THROTTLE_DEC_SCALE "throttledecscale"
+#define PREFERENCE_DRIVE_THROTTLE_ACC_SCALE "throttleaccscl"
+#define PREFERENCE_DRIVE_THROTTLE_DEC_SCALE "throttledecscl"
 #define PREFERENCE_DRIVE_TURN_ACC_SCALE     "turnaccscale"
 #define PREFERENCE_DRIVE_TURN_DEC_SCALE     "turndecscale"
 #define PREFERENCE_DRIVE_GUEST_SPEED        "guestmaxspeed"

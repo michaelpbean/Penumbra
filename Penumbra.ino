@@ -730,8 +730,10 @@ void setup()
 #endif
 
 #ifdef DRIVE_BAUD_RATE
-    // Serial1 is used for drive system
-    Serial1.begin(DRIVE_BAUD_RATE, SERIAL_8N1, SERIAL1_RX_PIN, SERIAL1_TX_PIN);
+    // Serial1 is used for drive system if using Sabertooth or Roboteq serial commands, otherwise it is unused and can be used for other purposes.
+    #if (DRIVE_SYSTEM != DRIVE_SYSTEM_PWM) && (DRIVE_SYSTEM != DRIVE_SYSTEM_ROBOTEQ_PWM)
+        Serial1.begin(DRIVE_BAUD_RATE, SERIAL_8N1, SERIAL1_RX_PIN, SERIAL1_TX_PIN);
+    #endif
 
     // Serial2 is used for the dome drive if Sabertooth is not being used for the main drive, so start here.
     #if (DOME_DRIVE == DOME_DRIVE_SABER) && (DRIVE_SYSTEM != DRIVE_SYSTEM_SABER)
