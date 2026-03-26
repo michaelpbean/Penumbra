@@ -34,12 +34,14 @@ class BluepadController : public JoystickController
         BluepadController();
         virtual ~BluepadController();
 
+        virtual void disconnect() override;
         void setPlayer(int player);        
         void assignBP32Controller(int id, Controller* pController);
         void clearBP32Controller(int id);
         void updateState();
 
     protected:
+        void setColorLED(uint8_t red, uint8_t green, uint8_t blue);
         Type mType;
         int mBluepadControllerID;
         State fState;

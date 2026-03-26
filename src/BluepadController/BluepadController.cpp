@@ -231,9 +231,35 @@ BluepadController::~BluepadController()
 
 
 ///////////////////////////////////////////////////////////////////////////////
+void BluepadController::disconnect()
+{
+    if (mBluepadControllerID < 0)
+        return;
+
+    ControllerPtr pBP32Ctl = gAllControllers[mBluepadControllerID];
+    if (!pBP32Ctl)
+        return;
+
+    pBP32Ctl->disconnect();
+}
+
+///////////////////////////////////////////////////////////////////////////////
 void BluepadController::setPlayer(int player)
 {
 
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void BluepadController::setColorLED(uint8_t red, uint8_t green, uint8_t blue)
+{
+    if (mBluepadControllerID < 0)
+        return;
+
+    ControllerPtr pBP32Ctl = gAllControllers[mBluepadControllerID];
+    if (!pBP32Ctl || !pBP32Ctl->isConnected())
+        return;
+
+    pBP32Ctl->setColorLED(red, green, blue);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
