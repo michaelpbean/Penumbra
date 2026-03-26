@@ -165,13 +165,13 @@ SoftwareSerial marcSerial;
 void enableController();
 void disableController();
 void emergencyStop();
+bool driveControlsEnabled();
 void enableDomeController();
 void disableDomeController();
 void domeEmergencyStop();
 void eventLoopTask(void *arg);
 
 ////////////////////////////////////
-
 #ifdef USE_BLUEPAD
 class DriveController : public BluepadController
 #else
@@ -187,8 +187,92 @@ public:
 
     virtual void notify() override
     {
+        fLastDataTime = millis();
+
+        // Event handling map these actions for your droid.
+        // You can choose to either respond to key down or key up
+        if (event.button_down.l3)
+        {
+            DEBUG_PRINTLN("DRIVE L3 DOWN");
+        }
+        else if (event.button_up.l3)
+        {
+            DEBUG_PRINTLN("DRIVE L3 UP");
+        }
+
+        if (event.button_down.cross)
+        {
+            DEBUG_PRINTLN("DRIVE X DOWN");
+            // Temporarily repurpose the X button to toggle drive control enabled/disabled for testing safety features. Comment out or delete this block when you want to use the X button for something else.
+            //setDriveControlsEnabled(!driveControlsEnabled());
+        }
+        else if (event.button_up.cross)
+        {
+            DEBUG_PRINTLN("DRIVE X UP");
+        }
+
+        if (event.button_down.circle)
+        {
+            DEBUG_PRINTLN("DRIVE O DOWN");
+        }
+        else if (event.button_up.circle)
+        {
+            DEBUG_PRINTLN("DRIVE O UP");
+        }
+
+        if (event.button_down.up)
+        {
+            DEBUG_PRINTLN("DRIVE Started pressing the up button");
+        }
+        else if (event.button_up.up)
+        {
+            DEBUG_PRINTLN("DRIVE Released the up button");
+        }
+
+        if (event.button_down.right)
+        {
+            DEBUG_PRINTLN("DRIVE Started pressing the right button");
+        }
+        else if (event.button_up.right)
+        {
+            DEBUG_PRINTLN("DRIVE Released the right button");
+        }
+
+        if (event.button_down.down)
+        {
+            DEBUG_PRINTLN("DRIVE Started pressing the down button");
+        }
+        else if (event.button_up.down)
+        {
+            DEBUG_PRINTLN("DRIVE Released the down button");
+        }
+
+        if (event.button_down.left)
+        {
+            DEBUG_PRINTLN("DRIVE Started pressing the left button");
+        }
+        else if (event.button_up.left)
+        {
+            DEBUG_PRINTLN("DRIVE Released the left button");
+        }
+
+        if (event.button_down.ps)
+        {
+            DEBUG_PRINTLN("DRIVE PS DOWN");
+        }
+        else if (event.button_up.ps)
+        {
+            DEBUG_PRINTLN("DRIVE PS UP");
+        }
+    }
+
+    void updateSafety()
+    {
+        if (!isConnected())
+            return;
+
         uint32_t currentTime = millis();
-        uint32_t lagTime = (currentTime > fLastTime) ? currentTime - fLastTime : 0;
+        uint32_t lagTime = (currentTime > fLastDataTime) ? currentTime - fLastDataTime : 0;
         if (lagTime > 5000)
         {
             DEBUG_PRINTLN("More than 5 seconds. Disconnect");
@@ -200,83 +284,23 @@ public:
             DEBUG_PRINTLN("It has been 500ms. Shutdown motors");
             emergencyStop();
         }
+    }
+
+    void setDriveControlsEnabled(bool enabled)
+    {
+        if (enabled)
+        {
+            DEBUG_PRINTLN("Drive controls enabled");
+            enableController();
+        }
         else
         {
-            // Event handling map these actions for your droid.
-            // You can choose to either respond to key down or key up
-            if (event.button_down.l3)
-            {
-                DEBUG_PRINTLN("DRIVE L3 DOWN");
-            }
-            else if (event.button_up.l3)
-            {
-                DEBUG_PRINTLN("DRIVE L3 UP");
-            }
-
-            if (event.button_down.cross)
-            {
-                DEBUG_PRINTLN("DRIVE X DOWN");
-            }
-            else if (event.button_up.cross)
-            {
-                DEBUG_PRINTLN("DRIVE X UP");
-            }
-
-            if (event.button_down.circle)
-            {
-                DEBUG_PRINTLN("DRIVE O DOWN");
-            }
-            else if (event.button_up.circle)
-            {
-                DEBUG_PRINTLN("DRIVE O UP");
-            }
-
-            if (event.button_down.up)
-            {
-                DEBUG_PRINTLN("DRIVE Started pressing the up button");
-            }
-            else if (event.button_up.up)
-            {
-                DEBUG_PRINTLN("DRIVE Released the up button");
-            }
-
-            if (event.button_down.right)
-            {
-                DEBUG_PRINTLN("DRIVE Started pressing the right button");
-            }
-            else if (event.button_up.right)
-            {
-                DEBUG_PRINTLN("DRIVE Released the right button");
-            }
-
-            if (event.button_down.down)
-            {
-                DEBUG_PRINTLN("DRIVE Started pressing the down button");
-            }
-            else if (event.button_up.down)
-            {
-                DEBUG_PRINTLN("DRIVE Released the down button");
-            }
-
-            if (event.button_down.left)
-            {
-                DEBUG_PRINTLN("DRIVE Started pressing the left button");
-            }
-            else if (event.button_up.left)
-            {
-                DEBUG_PRINTLN("DRIVE Released the left button");
-            }
-
-            if (event.button_down.ps)
-            {
-                DEBUG_PRINTLN("DRIVE PS DOWN");
-            }
-            else if (event.button_up.ps)
-            {
-                DEBUG_PRINTLN("DRIVE PS UP");
-            }
+            DEBUG_PRINTLN("Drive controls disabled");
+            disableController();
         }
-        fLastTime = currentTime;
+        #ifdef USE_BLUEPAD
+            setColorLED(enabled ? 0 : 255, 0, enabled ? 255 : 0);
+        #endif
     }
 
     virtual void onConnect() override
@@ -285,7 +309,10 @@ public:
         setPlayer(1);
         enableController();
         enableDomeController();
-        fLastTime = millis();
+        fLastDataTime = millis();
+        #ifdef USE_BLUEPAD
+            setColorLED(0, 0, 255);
+        #endif
     }
     
     virtual void onDisconnect() override
@@ -293,9 +320,10 @@ public:
         DEBUG_PRINTLN("Drive Stick Disconnected");
         disableController();
         disableDomeController();
+        fLastDataTime = 0;
     }
 
-    uint32_t fLastTime = 0;
+    uint32_t fLastDataTime = 0;
 };
 DriveController driveStick(DRIVE_STICK_BT_ADDR);
 
@@ -315,8 +343,17 @@ public:
     #endif
     virtual void notify() override
     {
+        fLastDataTime = millis();
+        process();
+    }
+
+    void updateSafety()
+    {
+        if (!isConnected())
+            return;
+
         uint32_t currentTime = millis();
-        uint32_t lagTime = (currentTime > fLastTime) ? currentTime - fLastTime : 0;
+        uint32_t lagTime = (currentTime > fLastDataTime) ? currentTime - fLastDataTime : 0;
         if (lagTime > 5000)
         {
             DEBUG_PRINTLN("More than 5 seconds. Disconnect");
@@ -328,11 +365,6 @@ public:
             DEBUG_PRINTLN("It has been 300ms. Shutdown motors");
             domeEmergencyStop();
         }
-        else
-        {
-            process();
-        }
-        fLastTime = currentTime;
     }
 
     void process()
@@ -494,18 +526,18 @@ public:
         DEBUG_PRINTLN("Dome Stick Connected");
         setPlayer(2);
         enableDomeController();
-        fLastTime = millis();
+        fLastDataTime = millis();
     }
     
     virtual void onDisconnect() override
     {
         DEBUG_PRINTLN("Dome Stick Disconnected");
         disableDomeController();
+        fLastDataTime = 0;
     }
 
-    uint32_t fLastTime = 0;
-
 protected:
+    uint32_t fLastDataTime = 0;
     bool fGestureCollect = false;
     char fGestureBuffer[MAX_GESTURE_LENGTH+1];
     char* fGesturePtr = fGestureBuffer;
@@ -587,6 +619,11 @@ void disableController()
 void emergencyStop()
 {
     tankDrive.stop();
+}
+
+bool driveControlsEnabled()
+{
+    return tankDrive.getEnable();
 }
 
 void enableDomeController()
@@ -937,6 +974,13 @@ void loop()
     webServer.handle();
 #endif
 
-    BluepadController::update();
+    #ifdef USE_BLUEPAD
+        BluepadController::update();
+    #endif
+
+    driveStick.updateSafety();
+    #if DOME_DRIVE != DOME_DRIVE_NONE && DRIVE_CONTROLLER_TYPE == 1
+        domeStick.updateSafety();
+    #endif
     delay(1);
 }
