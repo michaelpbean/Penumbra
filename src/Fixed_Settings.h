@@ -42,5 +42,11 @@
 #define PREFERENCE_WIFI_SSID                "ssid"
 #define PREFERENCE_WIFI_PASS                "pass"
 #define PREFERENCE_WIFI_AP                  "ap"
+#define PREFERENCE_MARCSOUND                "msound"
+#define PREFERENCE_MARCSOUND_VOLUME         "mvolume"
+#define PREFERENCE_MARCSOUND_STARTUP        "msoundstart"
+#define PREFERENCE_MARCSOUND_RANDOM         "mrandom"
+#define PREFERENCE_MARCSOUND_RANDOM_MIN     "mrandommin"
+#define PREFERENCE_MARCSOUND_RANDOM_MAX     "mrandommax"
 
 #endif

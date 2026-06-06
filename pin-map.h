@@ -6,17 +6,17 @@
 
 //#define USE_USB
 
-#define DIN1_PIN                34 // RXD0
-#define DIN2_PIN                35 // TXD0
+#define DIN1_PIN                34
+#define DIN2_PIN                35
 
 #define DOUT1_PIN               14
 #define DOUT2_PIN               13
 
-#define RXD1_PIN                33
+#define RXD1_PIN                33 // Labeled as 2 on PCB
 #define TXD1_PIN                25
-#define RXD2_PIN                16
+#define RXD2_PIN                16 // Labeled as 3 on PCB
 #define TXD2_PIN                17
-#define RXD3_PIN                32
+#define RXD3_PIN                32 // Labeled as 4 on PCB
 #define TXD3_PIN                4
 
 #define OUTPUT_ENABLE_PIN       27
@@ -45,6 +45,12 @@
 // You may ignore this if you do not use PWM for your dome system.
 // MPB - Using Syren for dome drive so no PWM pin is needed.
 //#define DOME_MOTOR_PWM      DOUT1_PIN  // Set to a PWM pin used to control the dome motor
+
+#define SOUND_SERIAL_TX         DOUT1_PIN
+#define SOUND_SERIAL_RX         DIN2_PIN
+#define SOUND_SERIAL            soundSerial
+#define SOUND_SERIAL_INIT(baud) { SOUND_SERIAL.begin(baud, SWSERIAL_8N1, SOUND_SERIAL_RX, SOUND_SERIAL_TX, false); delay(1500); }
+#define SOUND_SERIAL_BAUD       9600
 
 #include "SoftwareSerial.h"
 
@@ -81,5 +87,11 @@
 
 //#include "SoftwareSerial.h"
 //#define SERIAL_MARCDUINO_TX_PIN 5 // Set to the pin you use for Software Serial
+
+#define SOUND_SERIAL_TX         5
+#define SOUND_SERIAL_RX         18
+#define SOUND_SERIAL            soundSerial
+#define SOUND_SERIAL_INIT(baud) { SOUND_SERIAL.begin(baud, SWSERIAL_8N1, SOUND_SERIAL_RX, SOUND_SERIAL_TX, false); delay(1500); }
+#define SOUND_SERIAL_BAUD       9600
 
 #endif

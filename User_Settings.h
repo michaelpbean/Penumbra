@@ -127,6 +127,23 @@
 #define DOME_INVERTED        false  // set to true if dome drive should be inverted
 
 // ------------------------------
+// Sound module
+
+// Uncomment one of the following to enable sound module support.
+//#define USE_MP3_TRIGGER
+//#define USE_DFMINI_PLAYER
+#define USE_HCR_VOCALIZER
+
+#if defined(USE_MP3_TRIGGER) || defined(USE_DFMINI_PLAYER) || defined(USE_HCR_VOCALIZER)
+#define MARC_SOUND_VOLUME               500     // 0 - 1000
+#define MARC_SOUND_RANDOM               false   // Play random sounds
+#define MARC_SOUND_RANDOM_MIN           5000    // Min wait until random sound
+#define MARC_SOUND_RANDOM_MAX           30000   // Max wait until random sound
+#define MARC_SOUND_STARTUP              -1      // Startup sound, or -1 for none
+#define ENABLE_SOUND_CONTROLLER_BUTTONS
+#endif
+
+// ------------------------------
 // SYK radio controller
 
 // Uncomment to enable the optional SYK base radio controller

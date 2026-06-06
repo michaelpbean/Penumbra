@@ -339,10 +339,10 @@ void BluepadController::updateState()
     //fState.button.downright= pBP32Ctl->bottomRight();
     //fState.button.downleft = pBP32Ctl->bottomLeft();
 
-    fState.button.l2        = pBP32Ctl->l2();
-    fState.button.r2        = pBP32Ctl->r2();
-    fState.button.l1        = pBP32Ctl->l1();
-    fState.button.r1        = pBP32Ctl->r1();
+    fState.button.l2        = pBP32Ctl->l2(); // Trigger
+    fState.button.r2        = pBP32Ctl->r2(); // Trigger
+    fState.button.l1        = pBP32Ctl->l1(); // Shoulder button
+    fState.button.r1        = pBP32Ctl->r1(); // Shoulder button
 
     fState.button.triangle  = pBP32Ctl->y();
     fState.button.circle    = pBP32Ctl->b();    

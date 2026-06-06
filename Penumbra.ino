@@ -89,6 +89,19 @@
 //
 #include "User_Settings.h"
 #include "ReelTwo.h"
+#if defined(USE_HCR_VOCALIZER) || defined(USE_MP3_TRIGGER) || defined(USE_DFMINI_PLAYER)
+ #define SOUND_DEBUG printf
+ extern SoftwareSerial soundSerial;
+ #include "MarcduinoSound.h"
+ #if defined(USE_HCR_VOCALIZER)
+  #define MARC_SOUND_PLAYER MarcSound::kHCR
+ #elif defined(USE_MP3_TRIGGER)
+  #define MARC_SOUND_PLAYER MarcSound::kMP3Trigger
+ #elif defined(USE_DFMINI_PLAYER)
+  #define MARC_SOUND_PLAYER MarcSound::kDFMini
+ #endif
+ #define MARC_SOUND
+#endif
 #include "drive/TankDrivePWM.h"
 #include "drive/TankDriveRoboteq.h"
 #if DRIVE_SYSTEM == DRIVE_SYSTEM_SABER
@@ -158,6 +171,46 @@ Preferences preferences;
 #ifdef SERIAL_MARCDUINO_TX_PIN
 SoftwareSerial marcSerial;
 #endif
+#ifdef MARC_SOUND
+SoftwareSerial soundSerial;
+#endif
+
+enum TestHCRSoundSlot
+{
+    kTestHCRUp,
+    kTestHCRRight,
+    kTestHCRDown,
+    kTestHCRLeft
+};
+
+#ifdef MARC_SOUND
+static HCRSound getTestHCRSound(TestHCRSoundSlot slot, bool l1Held, bool r1Held)
+{
+    static const HCRSound kBaseMap[4][4] = {
+        { kHCRLeiaHologram,   kHCRTHX,             kHCRStarTours,       kHCRCantina1 },
+        { kHCRMainTitleTheme, kHCRCantina1,        kHCRTHX,             kHCRImperialMarch },
+        { kHCRMedalCeremony,  kHCRLeiaHologram,    kHCRLeiaHologram,    kHCRMainTitleTheme },
+        { kHCRFoxFanfare,     kHCRMainTitleTheme,  kHCRFoxFanfare,      kHCRMedalCeremony }
+    };
+
+    uint8_t modifierIndex = (l1Held ? 2 : 0) + (r1Held ? 1 : 0);
+    return kBaseMap[slot][modifierIndex];
+}
+
+static void playTestHCRSound(TestHCRSoundSlot slot, bool l1Held, bool r1Held)
+{
+    HCRSound sound = getTestHCRSound(slot, l1Held, r1Held);
+    const HCRSoundConfig* config = getHCRSoundConfig(sound);
+    if (config != nullptr)
+    {
+        DEBUG_PRINT("HCR test sound: ");
+        DEBUG_PRINT(config->name);
+        DEBUG_PRINT(" ");
+        DEBUG_PRINTLN(config->number);
+        sMarcSound.playHCRSoundA(sound);
+    }
+}
+#endif
 
 ////////////////////////////////////
 // Forward declare utility routines
@@ -170,6 +223,10 @@ void enableDomeController();
 void disableDomeController();
 void domeEmergencyStop();
 void eventLoopTask(void *arg);
+#ifdef MARC_SOUND
+void processSoundSerial();
+void processSoundSerialCommand(char* cmd);
+#endif
 
 ////////////////////////////////////
 #ifdef USE_BLUEPAD
@@ -189,80 +246,116 @@ public:
     {
         fLastDataTime = millis();
 
+        if (event.button_down.l1)
+        {
+            DEBUG_PRINTLN("DRIVE L1 DOWN");
+        }
+        if (event.button_down.r1)
+        {
+            DEBUG_PRINTLN("DRIVE R1 DOWN");
+        }
+        if (event.button_down.l2)
+        {
+            DEBUG_PRINTLN("DRIVE L2 DOWN");
+        }
+        if (event.button_down.r2)
+        {
+            DEBUG_PRINTLN("DRIVE R2 DOWN");
+        }
+
         // Event handling map these actions for your droid.
         // You can choose to either respond to key down or key up
         if (event.button_down.l3)
         {
             DEBUG_PRINTLN("DRIVE L3 DOWN");
         }
-        else if (event.button_up.l3)
-        {
-            DEBUG_PRINTLN("DRIVE L3 UP");
-        }
 
+        // Face buttons
         if (event.button_down.cross)
         {
             DEBUG_PRINTLN("DRIVE X DOWN");
             // Temporarily repurpose the X button to toggle drive control enabled/disabled for testing safety features. Comment out or delete this block when you want to use the X button for something else.
             //setDriveControlsEnabled(!driveControlsEnabled());
         }
-        else if (event.button_up.cross)
+
+        if (event.button_down.square)
         {
-            DEBUG_PRINTLN("DRIVE X UP");
+            DEBUG_PRINTLN("DRIVE Square DOWN");
+        }
+
+        if (event.button_down.triangle)
+        {
+            DEBUG_PRINTLN("DRIVE Triangle DOWN");
+            #if defined(MARC_SOUND) && defined(ENABLE_SOUND_CONTROLLER_BUTTONS)
+                if (state.button.r1)
+                    sMarcSound.setCanonicalMode(false);
+                else
+                    sMarcSound.setCanonicalMode(true);
+            #endif
         }
 
         if (event.button_down.circle)
         {
             DEBUG_PRINTLN("DRIVE O DOWN");
         }
-        else if (event.button_up.circle)
-        {
-            DEBUG_PRINTLN("DRIVE O UP");
-        }
 
+        // Dpad buttons
         if (event.button_down.up)
         {
             DEBUG_PRINTLN("DRIVE Started pressing the up button");
-        }
-        else if (event.button_up.up)
-        {
-            DEBUG_PRINTLN("DRIVE Released the up button");
+            #if defined(MARC_SOUND) && defined(ENABLE_SOUND_CONTROLLER_BUTTONS)
+                if (state.button.l1)
+                    playTestHCRSound(kTestHCRUp, true, state.button.r1);
+                else if (state.button.r1)
+                    sMarcSound.playHappy(true);
+                else
+                    sMarcSound.playHappy(false);
+            #endif
         }
 
         if (event.button_down.right)
         {
             DEBUG_PRINTLN("DRIVE Started pressing the right button");
-        }
-        else if (event.button_up.right)
-        {
-            DEBUG_PRINTLN("DRIVE Released the right button");
+            #if defined(MARC_SOUND) && defined(ENABLE_SOUND_CONTROLLER_BUTTONS)
+                if (state.button.l1)
+                    playTestHCRSound(kTestHCRRight, true, state.button.r1);
+                else if (state.button.r1)
+                    sMarcSound.playScared(true);
+                else
+                    sMarcSound.playScared(false);
+            #endif
         }
 
         if (event.button_down.down)
         {
             DEBUG_PRINTLN("DRIVE Started pressing the down button");
-        }
-        else if (event.button_up.down)
-        {
-            DEBUG_PRINTLN("DRIVE Released the down button");
+            #if defined(MARC_SOUND) && defined(ENABLE_SOUND_CONTROLLER_BUTTONS)
+                if (state.button.l1)
+                    playTestHCRSound(kTestHCRDown, true, state.button.r1);
+                else if (state.button.r1)
+                    sMarcSound.playSad(true);
+                else
+                    sMarcSound.playSad(false);
+            #endif
         }
 
         if (event.button_down.left)
         {
             DEBUG_PRINTLN("DRIVE Started pressing the left button");
-        }
-        else if (event.button_up.left)
-        {
-            DEBUG_PRINTLN("DRIVE Released the left button");
+            #if defined(MARC_SOUND) && defined(ENABLE_SOUND_CONTROLLER_BUTTONS)
+                if (state.button.l1)
+                    playTestHCRSound(kTestHCRLeft, true, state.button.r1);
+                else if (state.button.r1)
+                    sMarcSound.playOverload();
+                else
+                    sMarcSound.triggerMuse();
+            #endif
         }
 
+        // Other buttons
         if (event.button_down.ps)
         {
             DEBUG_PRINTLN("DRIVE PS DOWN");
-        }
-        else if (event.button_up.ps)
-        {
-            DEBUG_PRINTLN("DRIVE PS UP");
         }
     }
 
@@ -653,82 +746,7 @@ WifiAccess wifiAccess;
 #endif
 
 #ifdef USE_WIFI_WEB
-////////////////////////////////
-// Web configurable parameters. Strongly advice not to change web settings while motors are running
-// unless the wheels are off the ground.
-WElement mainContents[] = {
-    WH1("Drive Configuration"),
-    WSlider("Max Speed", "maxspeed", 0, 100,
-        []()->int { return tankDrive.getMaxSpeed()*100; },
-        [](int val) { tankDrive.stop(); tankDrive.setMaxSpeed(val/100.0f); } ),
-    WSlider("Guest Max Speed", "guestspeed", 0, 100,
-        []()->int { return tankDrive.getGuestSpeedModifier()*100; },
-        [](int val) { tankDrive.stop(); tankDrive.setGuestSpeedModifier(val/100.0f); } ),
-    WSlider("Throttle Acceleration", "throttleAccel", 1, 400,
-        []()->int { return tankDrive.getThrottleAccelerationScale(); },
-        [](int val) { tankDrive.stop(); tankDrive.setThrottleAccelerationScale(val); } ),
-    WSlider("Throttle Deceleration", "throttleDecel", 1, 400,
-        []()->int { return tankDrive.getThrottleDecelerationScale(); },
-        [](int val) { tankDrive.stop(); tankDrive.setThrottleDecelerationScale(val); } ),
-    WSlider("Turn Acceleration", "turnAccel", 1, 400,
-        []()->int { return tankDrive.getTurnAccelerationScale(); },
-        [](int val) { tankDrive.stop(); tankDrive.setTurnAccelerationScale(val); } ),
-    WSlider("Turn Deceleration", "turnDecl", 1, 400,
-        []()->int { return tankDrive.getTurnDecelerationScale(); },
-        [](int val) { tankDrive.stop(); tankDrive.setTurnDecelerationScale(val); } ),
-    WCheckbox("Scale Throttle", "scaling",
-        []() { return tankDrive.getScaling(); },
-        [](bool val) { tankDrive.stop(); tankDrive.setScaling(val); } ),
-    WCheckbox("Channel Mixing", "mixing",
-        []() { return tankDrive.getChannelMixing(); },
-        [](bool val) { tankDrive.stop(); tankDrive.setChannelMixing(val); } ),
-    WCheckbox("Throttle Inverted", "throttleInvert",
-        []() { return tankDrive.getThrottleInverted(); },
-        [](bool val) { tankDrive.stop(); tankDrive.setThrottleInverted(val); } ),
-    WCheckbox("Turn Inverted", "turnInvert",
-        []() { return tankDrive.getTurnInverted(); },
-        [](bool val) { tankDrive.stop(); tankDrive.setTurnInverted(val); } ),
-#if DOME_DRIVE != DOME_DRIVE_NONE
-    WCheckbox("Dome Inverted", "domeInvert",
-        []() { return domeDrive.getInverted(); },
-        [](bool val) { domeDrive.stop(); domeDrive.setInverted(val); } ),
-#endif
-    WButton("Save", "save", []() {
-        preferences.putFloat(PREFERENCE_DRIVE_SPEED, tankDrive.getMaxSpeed());
-        preferences.putFloat(PREFERENCE_DRIVE_THROTTLE_ACC_SCALE, tankDrive.getThrottleAccelerationScale());
-        preferences.putFloat(PREFERENCE_DRIVE_THROTTLE_DEC_SCALE, tankDrive.getThrottleDecelerationScale());
-        preferences.putFloat(PREFERENCE_DRIVE_TURN_ACC_SCALE, tankDrive.getTurnAccelerationScale());
-        preferences.putFloat(PREFERENCE_DRIVE_TURN_DEC_SCALE, tankDrive.getTurnDecelerationScale());
-        preferences.putFloat(PREFERENCE_DRIVE_GUEST_SPEED, tankDrive.getGuestSpeedModifier());
-        preferences.putBool(PREFERENCE_DRIVE_SCALING, tankDrive.getScaling());
-        preferences.putBool(PREFERENCE_DRIVE_MIXING, tankDrive.getChannelMixing());
-        preferences.putBool(PREFERENCE_DRIVE_THROTTLE_INVERT, tankDrive.getThrottleInverted());
-        preferences.putBool(PREFERENCE_DRIVE_TURN_INVERT, tankDrive.getTurnInverted());
-    #if DOME_DRIVE != DOME_DRIVE_NONE
-        preferences.putBool(PREFERENCE_DOME_DRIVE_INVERT, domeDrive.getInverted());
-    #endif
-    }),
-    WButton("Restore", "restore", []() {
-        tankDrive.setMaxSpeed(preferences.getFloat(PREFERENCE_DRIVE_SPEED, MAXIMUM_SPEED));
-        tankDrive.setThrottleAccelerationScale(preferences.getFloat(PREFERENCE_DRIVE_THROTTLE_ACC_SCALE, ACCELERATION_SCALE));
-        tankDrive.setThrottleDecelerationScale(preferences.getFloat(PREFERENCE_DRIVE_THROTTLE_DEC_SCALE, DECELERATION_SCALE));
-        tankDrive.setTurnAccelerationScale(preferences.getFloat(PREFERENCE_DRIVE_TURN_ACC_SCALE, ACCELERATION_SCALE*2));
-        tankDrive.setTurnDecelerationScale(preferences.getFloat(PREFERENCE_DRIVE_TURN_DEC_SCALE, DECELERATION_SCALE));
-        tankDrive.setGuestSpeedModifier(preferences.getFloat(PREFERENCE_DRIVE_GUEST_SPEED, MAXIMUM_GUEST_SPEED));
-        tankDrive.setScaling(preferences.getBool(PREFERENCE_DRIVE_SCALING, SCALING));
-        tankDrive.setChannelMixing(preferences.getBool(PREFERENCE_DRIVE_MIXING, CHANNEL_MIXING));
-        tankDrive.setThrottleInverted(preferences.getBool(PREFERENCE_DRIVE_THROTTLE_INVERT, THROTTLE_INVERTED));
-        tankDrive.setTurnInverted(preferences.getBool(PREFERENCE_DRIVE_TURN_INVERT, TURN_INVERTED));
-    #if DOME_DRIVE != DOME_DRIVE_NONE
-        domeDrive.setInverted(preferences.getBool(PREFERENCE_DOME_DRIVE_INVERT, DOME_INVERTED));
-    #endif
-    }),
-    WImage("astromech", ASTROMECH_IMAGE)
-};
-WPage pages[] = {
-    WPage("/", mainContents, SizeOfArray(mainContents))
-};
-WifiWebServer<1,SizeOfArray(pages)> webServer(pages, wifiAccess);
+ #include "WebPages.h"
 #endif
 
 #ifndef USE_BLUEPAD
@@ -783,6 +801,21 @@ void setup()
 #ifdef SERIAL_MARCDUINO_TX_PIN
     // Transmit only software serial on SERIAL_MARCDUINO_TX_PIN
     marcSerial.begin(MARCDUINO_BAUD_RATE, SWSERIAL_8N1, -1, SERIAL_MARCDUINO_TX_PIN, false, 0);
+#endif
+#ifdef MARC_SOUND
+    SOUND_SERIAL_INIT(SOUND_SERIAL_BAUD);
+    MarcSound::Module soundPlayer = (MarcSound::Module)preferences.getInt(PREFERENCE_MARCSOUND, MARC_SOUND_PLAYER);
+    int soundStartup = preferences.getInt(PREFERENCE_MARCSOUND_STARTUP, MARC_SOUND_STARTUP);
+    if (!sMarcSound.begin(soundPlayer, SOUND_SERIAL, soundStartup))
+    {
+        DEBUG_PRINTLN("FAILED TO INITIALIZE SOUND MODULE");
+    }
+    sMarcSound.setVolume(preferences.getInt(PREFERENCE_MARCSOUND_VOLUME, MARC_SOUND_VOLUME) / 1000.0);
+    sMarcSound.playStartSound();
+    sMarcSound.setRandomMin(preferences.getInt(PREFERENCE_MARCSOUND_RANDOM_MIN, MARC_SOUND_RANDOM_MIN));
+    sMarcSound.setRandomMax(preferences.getInt(PREFERENCE_MARCSOUND_RANDOM_MAX, MARC_SOUND_RANDOM_MAX));
+    if (preferences.getBool(PREFERENCE_MARCSOUND_RANDOM, MARC_SOUND_RANDOM))
+        sMarcSound.startRandomInSeconds(13);
 #endif
 
     SetupEvent::ready();
@@ -973,6 +1006,10 @@ void loop()
 #ifdef USE_WIFI_WEB
     webServer.handle();
 #endif
+#ifdef MARC_SOUND
+    sMarcSound.idle();
+    processSoundSerial();
+#endif
 
     #ifdef USE_BLUEPAD
         BluepadController::update();
@@ -984,3 +1021,100 @@ void loop()
     #endif
     delay(1);
 }
+
+#ifdef MARC_SOUND
+void processSoundSerial()
+{
+    static char buffer[64];
+    static uint8_t pos = 0;
+
+    while (Serial.available())
+    {
+        char ch = Serial.read();
+        if (ch == '\n' || ch == '\r')
+        {
+            if (pos != 0)
+            {
+                buffer[pos] = '\0';
+                processSoundSerialCommand(buffer);
+                pos = 0;
+            }
+        }
+        else if (pos < sizeof(buffer) - 1)
+        {
+            buffer[pos++] = ch;
+        }
+    }
+}
+
+void processSoundSerialCommand(char* cmd)
+{
+    if (strncmp(cmd, "#SMVOLUME", 9) == 0)
+    {
+        int val = atoi(cmd + 9);
+        if (val < 0 || val > 1000)
+        {
+            DEBUG_PRINTLN("Sound Volume value out of range. Use 0 - 1000.");
+            return;
+        }
+        preferences.putInt(PREFERENCE_MARCSOUND_VOLUME, val);
+        sMarcSound.setVolume(val / 1000.0f);
+        DEBUG_PRINT("Sound Volume: "); DEBUG_PRINTLN(val);
+    }
+    else if (strncmp(cmd, "#SMSOUND", 8) == 0)
+    {
+        MarcSound::Module soundPlayer = (MarcSound::Module)atoi(cmd + 8);
+        switch (soundPlayer)
+        {
+            case MarcSound::kDisabled:
+            case MarcSound::kMP3Trigger:
+            case MarcSound::kDFMini:
+            case MarcSound::kHCR:
+                preferences.putInt(PREFERENCE_MARCSOUND, soundPlayer);
+                sMarcSound.begin(soundPlayer, SOUND_SERIAL, preferences.getInt(PREFERENCE_MARCSOUND_STARTUP, MARC_SOUND_STARTUP));
+                sMarcSound.setVolume(preferences.getInt(PREFERENCE_MARCSOUND_VOLUME, MARC_SOUND_VOLUME) / 1000.0f);
+                DEBUG_PRINT("Sound Module: "); DEBUG_PRINTLN((int)soundPlayer);
+                break;
+            default:
+                DEBUG_PRINTLN("Unknown sound module. Use 0, 1, 2, or 3.");
+                break;
+        }
+    }
+    else if (strncmp(cmd, "#SMSTARTUP", 10) == 0)
+    {
+        int val = atoi(cmd + 10);
+        preferences.putInt(PREFERENCE_MARCSOUND_STARTUP, val);
+        DEBUG_PRINT("Startup Sound: "); DEBUG_PRINTLN(val);
+    }
+    else if (strncmp(cmd, "#SMRANDMIN", 10) == 0)
+    {
+        int val = atoi(cmd + 10);
+        preferences.putInt(PREFERENCE_MARCSOUND_RANDOM_MIN, val);
+        sMarcSound.setRandomMin(val);
+        DEBUG_PRINT("Random Min: "); DEBUG_PRINTLN(val);
+    }
+    else if (strncmp(cmd, "#SMRANDMAX", 10) == 0)
+    {
+        int val = atoi(cmd + 10);
+        preferences.putInt(PREFERENCE_MARCSOUND_RANDOM_MAX, val);
+        sMarcSound.setRandomMax(val);
+        DEBUG_PRINT("Random Max: "); DEBUG_PRINTLN(val);
+    }
+    else if (strcmp(cmd, "#SMRAND0") == 0)
+    {
+        preferences.putBool(PREFERENCE_MARCSOUND_RANDOM, false);
+        sMarcSound.stopRandom();
+        DEBUG_PRINTLN("Random Sound Disabled");
+    }
+    else if (strcmp(cmd, "#SMRAND1") == 0)
+    {
+        preferences.putBool(PREFERENCE_MARCSOUND_RANDOM, true);
+        sMarcSound.startRandom();
+        DEBUG_PRINTLN("Random Sound Enabled");
+    }
+    else if (cmd[0] == '$')
+    {
+        sMarcSound.handleCommand(cmd);
+    }
+}
+#endif
