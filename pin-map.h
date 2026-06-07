@@ -46,11 +46,18 @@
 // MPB - Using Syren for dome drive so no PWM pin is needed.
 //#define DOME_MOTOR_PWM      DOUT1_PIN  // Set to a PWM pin used to control the dome motor
 
-#define SOUND_SERIAL_TX         DOUT1_PIN
-#define SOUND_SERIAL_RX         DIN2_PIN
-#define SOUND_SERIAL            soundSerial
-#define SOUND_SERIAL_INIT(baud) { SOUND_SERIAL.begin(baud, SWSERIAL_8N1, SOUND_SERIAL_RX, SOUND_SERIAL_TX, false); delay(1500); }
-#define SOUND_SERIAL_BAUD       9600
+#define WCB_SERIAL_TX           DOUT1_PIN
+#define WCB_SERIAL_RX           DIN2_PIN
+#define WCB_SERIAL              wcbSerial
+#define WCB_SERIAL_INIT(baud)   { WCB_SERIAL.begin(baud, SWSERIAL_8N1, WCB_SERIAL_RX, WCB_SERIAL_TX, false); delay(1500); }
+#define WCB_SERIAL_BAUD         9600
+
+// Backward-compatible aliases while transport usage is generalized away from sound-only naming.
+#define SOUND_SERIAL_TX         WCB_SERIAL_TX
+#define SOUND_SERIAL_RX         WCB_SERIAL_RX
+#define SOUND_SERIAL            WCB_SERIAL
+#define SOUND_SERIAL_INIT(baud) WCB_SERIAL_INIT(baud)
+#define SOUND_SERIAL_BAUD       WCB_SERIAL_BAUD
 
 #include "SoftwareSerial.h"
 
@@ -88,10 +95,17 @@
 //#include "SoftwareSerial.h"
 //#define SERIAL_MARCDUINO_TX_PIN 5 // Set to the pin you use for Software Serial
 
-#define SOUND_SERIAL_TX         5
-#define SOUND_SERIAL_RX         18
-#define SOUND_SERIAL            soundSerial
-#define SOUND_SERIAL_INIT(baud) { SOUND_SERIAL.begin(baud, SWSERIAL_8N1, SOUND_SERIAL_RX, SOUND_SERIAL_TX, false); delay(1500); }
-#define SOUND_SERIAL_BAUD       9600
+#define WCB_SERIAL_TX           5
+#define WCB_SERIAL_RX           18
+#define WCB_SERIAL              wcbSerial
+#define WCB_SERIAL_INIT(baud)   { WCB_SERIAL.begin(baud, SWSERIAL_8N1, WCB_SERIAL_RX, WCB_SERIAL_TX, false); delay(1500); }
+#define WCB_SERIAL_BAUD         9600
+
+// Backward-compatible aliases while transport usage is generalized away from sound-only naming.
+#define SOUND_SERIAL_TX         WCB_SERIAL_TX
+#define SOUND_SERIAL_RX         WCB_SERIAL_RX
+#define SOUND_SERIAL            WCB_SERIAL
+#define SOUND_SERIAL_INIT(baud) WCB_SERIAL_INIT(baud)
+#define SOUND_SERIAL_BAUD       WCB_SERIAL_BAUD
 
 #endif

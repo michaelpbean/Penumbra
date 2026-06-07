@@ -89,9 +89,12 @@
 //
 #include "User_Settings.h"
 #include "ReelTwo.h"
+#include "SoftwareSerial.h"
+#include "src/DomeCommands.h"
+#include "src/WCBSerial.h"
 #if defined(USE_HCR_VOCALIZER) || defined(USE_MP3_TRIGGER) || defined(USE_DFMINI_PLAYER)
  #define SOUND_DEBUG printf
- extern SoftwareSerial soundSerial;
+ extern SoftwareSerial wcbSerial;
  #include "MarcduinoSound.h"
  #if defined(USE_HCR_VOCALIZER)
   #define MARC_SOUND_PLAYER MarcSound::kHCR
@@ -168,11 +171,11 @@ ServoDispatchDirect<SizeOfArray(servoSettings)> servoDispatch(servoSettings);
 
 TaskHandle_t eventTask;
 Preferences preferences;
+SoftwareSerial wcbSerial;
+WCBSerialCommandWriter sWCBSerial(WCB_SERIAL);
+DomeCommands sDomeCommands(sWCBSerial, DOME_WCB_ID, DOME_WCB_SERIAL_PORT);
 #ifdef SERIAL_MARCDUINO_TX_PIN
 SoftwareSerial marcSerial;
-#endif
-#ifdef MARC_SOUND
-SoftwareSerial soundSerial;
 #endif
 
 enum TestHCRSoundSlot
@@ -224,9 +227,10 @@ void disableDomeController();
 void domeEmergencyStop();
 void eventLoopTask(void *arg);
 #ifdef MARC_SOUND
-void processSoundSerial();
-void processSoundSerialCommand(char* cmd);
+bool processSoundConsoleCommand(char* cmd);
 #endif
+void processWCBSerialInput();
+bool processWCBSerialCommand(char* cmd);
 
 ////////////////////////////////////
 #ifdef USE_BLUEPAD
@@ -269,6 +273,13 @@ public:
         {
             DEBUG_PRINTLN("DRIVE L3 DOWN");
         }
+        #if DOME_DRIVE != DOME_DRIVE_NONE && DRIVE_CONTROLLER_TYPE != 1
+        if (event.button_down.r3)
+        {
+            DEBUG_PRINTLN("DRIVE R3 DOWN - DOME HOME");
+            sDomeCommands.home();
+        }
+        #endif
 
         // Face buttons
         if (event.button_down.cross)
@@ -802,14 +813,15 @@ void setup()
     // Transmit only software serial on SERIAL_MARCDUINO_TX_PIN
     marcSerial.begin(MARCDUINO_BAUD_RATE, SWSERIAL_8N1, -1, SERIAL_MARCDUINO_TX_PIN, false, 0);
 #endif
+    WCB_SERIAL_INIT(WCB_SERIAL_BAUD);
 #ifdef MARC_SOUND
-    SOUND_SERIAL_INIT(SOUND_SERIAL_BAUD);
     MarcSound::Module soundPlayer = (MarcSound::Module)preferences.getInt(PREFERENCE_MARCSOUND, MARC_SOUND_PLAYER);
     int soundStartup = preferences.getInt(PREFERENCE_MARCSOUND_STARTUP, MARC_SOUND_STARTUP);
-    if (!sMarcSound.begin(soundPlayer, SOUND_SERIAL, soundStartup))
+    if (!sMarcSound.begin(soundPlayer, WCB_SERIAL, soundStartup))
     {
         DEBUG_PRINTLN("FAILED TO INITIALIZE SOUND MODULE");
     }
+    sMarcSound.setWCBSerial(sWCBSerial, SOUND_WCB_ID, SOUND_WCB_SERIAL_PORT);
     sMarcSound.setVolume(preferences.getInt(PREFERENCE_MARCSOUND_VOLUME, MARC_SOUND_VOLUME) / 1000.0);
     sMarcSound.playStartSound();
     sMarcSound.setRandomMin(preferences.getInt(PREFERENCE_MARCSOUND_RANDOM_MIN, MARC_SOUND_RANDOM_MIN));
@@ -1008,8 +1020,8 @@ void loop()
 #endif
 #ifdef MARC_SOUND
     sMarcSound.idle();
-    processSoundSerial();
 #endif
+    processWCBSerialInput();
 
     #ifdef USE_BLUEPAD
         BluepadController::update();
@@ -1022,8 +1034,7 @@ void loop()
     delay(1);
 }
 
-#ifdef MARC_SOUND
-void processSoundSerial()
+void processWCBSerialInput()
 {
     static char buffer[64];
     static uint8_t pos = 0;
@@ -1036,7 +1047,7 @@ void processSoundSerial()
             if (pos != 0)
             {
                 buffer[pos] = '\0';
-                processSoundSerialCommand(buffer);
+                processWCBSerialCommand(buffer);
                 pos = 0;
             }
         }
@@ -1047,7 +1058,17 @@ void processSoundSerial()
     }
 }
 
-void processSoundSerialCommand(char* cmd)
+bool processWCBSerialCommand(char* cmd)
+{
+#ifdef MARC_SOUND
+    if (processSoundConsoleCommand(cmd))
+        return true;
+#endif
+    return false;
+}
+
+#ifdef MARC_SOUND
+bool processSoundConsoleCommand(char* cmd)
 {
     if (strncmp(cmd, "#SMVOLUME", 9) == 0)
     {
@@ -1055,11 +1076,12 @@ void processSoundSerialCommand(char* cmd)
         if (val < 0 || val > 1000)
         {
             DEBUG_PRINTLN("Sound Volume value out of range. Use 0 - 1000.");
-            return;
+            return false;
         }
         preferences.putInt(PREFERENCE_MARCSOUND_VOLUME, val);
         sMarcSound.setVolume(val / 1000.0f);
         DEBUG_PRINT("Sound Volume: "); DEBUG_PRINTLN(val);
+        return true;
     }
     else if (strncmp(cmd, "#SMSOUND", 8) == 0)
     {
@@ -1071,7 +1093,7 @@ void processSoundSerialCommand(char* cmd)
             case MarcSound::kDFMini:
             case MarcSound::kHCR:
                 preferences.putInt(PREFERENCE_MARCSOUND, soundPlayer);
-                sMarcSound.begin(soundPlayer, SOUND_SERIAL, preferences.getInt(PREFERENCE_MARCSOUND_STARTUP, MARC_SOUND_STARTUP));
+                sMarcSound.begin(soundPlayer, WCB_SERIAL, preferences.getInt(PREFERENCE_MARCSOUND_STARTUP, MARC_SOUND_STARTUP));
                 sMarcSound.setVolume(preferences.getInt(PREFERENCE_MARCSOUND_VOLUME, MARC_SOUND_VOLUME) / 1000.0f);
                 DEBUG_PRINT("Sound Module: "); DEBUG_PRINTLN((int)soundPlayer);
                 break;
@@ -1079,12 +1101,14 @@ void processSoundSerialCommand(char* cmd)
                 DEBUG_PRINTLN("Unknown sound module. Use 0, 1, 2, or 3.");
                 break;
         }
+        return true;
     }
     else if (strncmp(cmd, "#SMSTARTUP", 10) == 0)
     {
         int val = atoi(cmd + 10);
         preferences.putInt(PREFERENCE_MARCSOUND_STARTUP, val);
         DEBUG_PRINT("Startup Sound: "); DEBUG_PRINTLN(val);
+        return true;
     }
     else if (strncmp(cmd, "#SMRANDMIN", 10) == 0)
     {
@@ -1092,6 +1116,7 @@ void processSoundSerialCommand(char* cmd)
         preferences.putInt(PREFERENCE_MARCSOUND_RANDOM_MIN, val);
         sMarcSound.setRandomMin(val);
         DEBUG_PRINT("Random Min: "); DEBUG_PRINTLN(val);
+        return true;
     }
     else if (strncmp(cmd, "#SMRANDMAX", 10) == 0)
     {
@@ -1099,22 +1124,27 @@ void processSoundSerialCommand(char* cmd)
         preferences.putInt(PREFERENCE_MARCSOUND_RANDOM_MAX, val);
         sMarcSound.setRandomMax(val);
         DEBUG_PRINT("Random Max: "); DEBUG_PRINTLN(val);
+        return true;
     }
     else if (strcmp(cmd, "#SMRAND0") == 0)
     {
         preferences.putBool(PREFERENCE_MARCSOUND_RANDOM, false);
         sMarcSound.stopRandom();
         DEBUG_PRINTLN("Random Sound Disabled");
+        return true;
     }
     else if (strcmp(cmd, "#SMRAND1") == 0)
     {
         preferences.putBool(PREFERENCE_MARCSOUND_RANDOM, true);
         sMarcSound.startRandom();
         DEBUG_PRINTLN("Random Sound Enabled");
+        return true;
     }
     else if (cmd[0] == '$')
     {
         sMarcSound.handleCommand(cmd);
+        return true;
     }
+    return false;
 }
 #endif

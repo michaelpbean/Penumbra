@@ -1,5 +1,6 @@
 #include "DFRobotDFPlayerMini.h"
 #include "HCRSoundMap.h"
+#include "src/WCBSerial.h"
 /***********************************************************
  *  MP3sound.c
  *  MarcDuino interface to play sounds from an MP3Trigger board
@@ -698,6 +699,13 @@ public:
         return true;
     }
 
+    void setWCBSerial(WCBSerialCommandWriter& writer, int wcbId = -1, int serialPort = -1)
+    {
+        fWCBSerial = &writer;
+        fWCBId = wcbId;
+        fWCBSerialPort = serialPort;
+    }
+
     bool handleCommand(const char* cmd, bool skipStart = false)
     {
         ////////////////////////////////////////////////
@@ -832,6 +840,9 @@ public:
 private:
     DFRobotDFPlayerMini fDFMini;
     Stream* fStream = nullptr;
+    WCBSerialCommandWriter* fWCBSerial = nullptr;
+    int fWCBId = -1;
+    int fWCBSerialPort = -1;
     float fVolume = 0.5;
     Module fModule = kDisabled;
     bool fRandomEnabled = false;
@@ -875,16 +886,16 @@ private:
             fStream->write(cmd);
     }
 
-    #define HCR_APPEND_NEWLINE
     void sendHCR(const char* cmd)
     {
         SOUND_DEBUG("HCR: %s\n", cmd);
-        if (fStream != nullptr)
+        if (fWCBSerial != nullptr)
+        {
+            fWCBSerial->sendLine(cmd, fWCBId, fWCBSerialPort);
+        }
+        else if (fStream != nullptr)
         {
             fStream->print(cmd);
-            //#ifdef HRC_APPEND_NEWLINE
-                fStream->print("\r\n");
-            //#endif
         }
     }
 };

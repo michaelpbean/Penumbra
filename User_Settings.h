@@ -143,6 +143,14 @@
 #define ENABLE_SOUND_CONTROLLER_BUTTONS
 #endif
 
+// WCB route used for forwarded sound commands.
+#define SOUND_WCB_ID                    1
+#define SOUND_WCB_SERIAL_PORT           3
+
+// WCB route used for dome commands.
+#define DOME_WCB_ID                     1
+#define DOME_WCB_SERIAL_PORT            1
+
 // ------------------------------
 // SYK radio controller
 
